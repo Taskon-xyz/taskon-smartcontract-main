@@ -1,6 +1,49 @@
-# taskon-smartcontract
-taskon-smartcontract
-export ETHERSCAN_TOKEN=""
-export WEB3_INFURA_PROJECT_ID=""
-export BSCSCAN_TOKEN=""
-export POLYGONSCAN_TOKEN=""
+## taskon contracts
+
+#### polygon
+
+manager: 0x8f2f3dAD762d322b725d6d6bAC891c8b64EcF52C
+manager new impl: 0xebbCf5718cC24A72B43B07d60102B21aeB42e11C
+
+managerProxy: 0x57e54d4147AFdA7F0b55498EAf44e713811c3519
+
+nft: 0x9C19c0393Bd67A98C89088207112c1D7ca28Fa95
+new nft: 0xc8bCf06DAE0dB7538FFbd17Ce793b249DDb24Ead
+new nft: 0x9d083c192c44fAC3E07786D787918c456f58a27C
+
+#### ontology
+
+manager: 0xaee6ade3d0718af01f04e0a2697e9912a1e37053
+manager new impl: 0xebbCf5718cC24A72B43B07d60102B21aeB42e11C
+
+managerProxy: 0x57e54d4147AFdA7F0b55498EAf44e713811c3519
+
+nft: 0x9c19c0393bd67a98c89088207112c1d7ca28fa95
+new nft: 0xc8bCf06DAE0dB7538FFbd17Ce793b249DDb24Ead
+new nft: 0x9d083c192c44fAC3E07786D787918c456f58a27C
+
+#### bsc
+
+manager: 0x5F8200b2B2f57fC0510Ed80FefA6A445C4E69a3C
+manager new impl: 0xebbCf5718cC24A72B43B07d60102B21aeB42e11C
+
+managerProxy: 0x7cF3d2fE1bB390566C0f8b491eC04837aeB87536
+
+nft: 0x565a41a7D7019Aa2B7B3480e1195075F244b27f8
+new nft: 0xc8bCf06DAE0dB7538FFbd17Ce793b249DDb24Ead
+new nft: 0x9d083c192c44fAC3E07786D787918c456f58a27C
+
+## taskon contracts(testnet)
+#### polygon (testnet)
+manager: 0xDC326E4E6ff8B1A300e340a2a7bf5Db10aaED212
+
+managerProxy: 0x362495Aec908F916E48642bcd28c0F8f25130251
+
+gas 优化后
+managerProxy: 0x99d226e0b2a1c4905d18b54698c5a3eb96293fb7
+
+
+## bsc(testnet)
+
+old managerProxy 0x69c0308aE3737fAA51ddF04455dAF3C3c7Ef9D96
+old nft  0xd9bCeff25c3CA546F88c552d2306002dDc79A552
