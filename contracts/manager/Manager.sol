@@ -3,12 +3,12 @@ pragma solidity ^0.8.1;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
-import "../../interfaces/ITaskOnNFT721.sol";
+import "../interfaces/ITaskOnNFT721.sol";
 import "./ManagerStorage.sol";
 import "./ManagerProxy.sol";
 
 
-contract Manager is ManagerStorageV1 {
+contract Manager is ManagerStorageV2 {
     using ECDSA for bytes32;
 
     modifier onlyOwner() {
@@ -18,6 +18,16 @@ contract Manager is ManagerStorageV1 {
 
     modifier onlySigner() {
         require(msg.sender == orangeSinger, "must be signer address");
+        _;
+    }
+
+    modifier onlyAirdropAdmin() {
+        require(msg.sender == airdropAdmin, "must be airdropAdmin address");
+        _;
+    }
+
+    modifier onlyCanAirdrop() {
+        require(closedForAirdrop == false, "airdrop status is closed");
         _;
     }
 
@@ -34,9 +44,59 @@ contract Manager is ManagerStorageV1 {
         orangeSinger = _orangeSigner;
     }
 
+    function setAirdropAdmin(address newAirdropAdmin) external onlyOwner {
+        airdropAdmin = newAirdropAdmin;
+    }
+
     function _become(ManagerProxy managerProxy) public {
         require(msg.sender == managerProxy.admin(), "only proxy admin can change brains");
         managerProxy._acceptImplementation();
+    }
+
+    //true 表示关闭空投功能, false 表示打开空投功能
+    function setAirdropStatus(bool status) external onlyOwner {
+        closedForAirdrop = status;
+    }
+
+    //batch airdrop with the same tokenURI
+    function batchAirdrop(uint256 cid, uint256 limit, address[] calldata tos, string calldata tokenURI) public onlyAirdropAdmin onlyCanAirdrop {
+        require(nftAddr != address(0), "nftAddr not set");
+        updateCampaigns(cid, limit);
+        Campaign storage campaign = campaigns[cid];
+        require(campaign.minted + tos.length <= campaign.limit, "cid exceed its limit");
+        for (uint i = 0; i < tos.length; i++) {
+            mintInner(cid, tos[i], campaign, tokenURI);
+        }
+    }
+
+    //batch airdrop with the different tokenURI
+    function batchAirdropWithDifURI(uint256 cid, uint256 limit, address[] calldata tos, string[] calldata tokenURIs) public onlyAirdropAdmin onlyCanAirdrop {
+        require(nftAddr != address(0), "nftAddr not set");
+        require(tos.length == tokenURIs.length, "tos.length is not equal tokenURIs");
+        updateCampaigns(cid, limit);
+        Campaign storage campaign = campaigns[cid];
+        require(campaign.minted + tos.length <= campaign.limit, "cid exceed its limit");
+        for (uint i = 0; i < tos.length; i++) {
+            mintInner(cid, tos[i], campaign, tokenURIs[i]);
+        }
+    }
+
+    function updateCampaigns(uint256 cid, uint256 limit) internal {
+        if (!campaigns[cid].isUsed) {
+            campaigns[cid] = Campaign(cid, 0, limit, 1, true);
+        } else if (campaigns[cid].limit != limit) {
+            campaigns[cid].limit = limit;
+        }
+    }
+
+    function mintInner(uint256 cid, address to, Campaign storage campaign, string calldata tokenURI) internal {
+        bytes32 key = genParticipateKey(to, cid);
+        uint256 count = participated[key];
+        // not exceed limit
+        require(count + 1 <= campaign.limitPerUser, "participated exceed limit");
+        campaign.minted++;
+        participated[key]++;
+        ITaskOnNFT721(nftAddr).mint(to, cid, tokenURI);
     }
 
     function mint(address account, uint256 cid, string memory tokenURI, uint256 limit, bytes32 unsigned, bytes memory signature) public returns (uint256) {

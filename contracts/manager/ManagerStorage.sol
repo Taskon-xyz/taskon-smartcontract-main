@@ -38,3 +38,8 @@ contract ManagerStorageV1 is ManagerStorage {
         bool isUsed;
     }
 }
+
+contract ManagerStorageV2 is ManagerStorageV1 {
+    bool public closedForAirdrop; //true 表示关闭空投功能, false 表示打开空投功能
+    address public airdropAdmin;
+}
