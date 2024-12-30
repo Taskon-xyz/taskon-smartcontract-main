@@ -39,7 +39,6 @@ contract ManagerProxy is ManagerStorage {
         pendingManagerImplementation = newPendingImplementation;
 
         emit NewPendingImplementation(oldPendingImplementation, pendingManagerImplementation);
-
     }
 
     /**

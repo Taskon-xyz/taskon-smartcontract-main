@@ -1,6 +1,5 @@
 pragma solidity ^0.8.1;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 import "../interfaces/ITaskOnNFT721.sol";
@@ -8,7 +7,7 @@ import "./ManagerStorage.sol";
 import "./ManagerProxy.sol";
 
 
-contract Manager is ManagerStorageV2 {
+contract ManagerV3 is ManagerStorageV2 {
     using ECDSA for bytes32;
 
     modifier onlyOwner() {
@@ -23,6 +22,11 @@ contract Manager is ManagerStorageV2 {
 
     modifier onlyAirdropAdmin() {
         require(msg.sender == airdropAdmin, "must be airdropAdmin address");
+        _;
+    }
+
+    modifier onlyBatchAirdropAdmin() {
+        require(msg.sender == batchAirdropAdmin, "must be batchAirdropAdmin address");
         _;
     }
 
@@ -48,6 +52,10 @@ contract Manager is ManagerStorageV2 {
         airdropAdmin = newAirdropAdmin;
     }
 
+    function setBatchAirdropAdmin(address newBatchAirdropAdmin) external onlyOwner {
+        batchAirdropAdmin = newBatchAirdropAdmin;
+    }
+
     function _become(ManagerProxy managerProxy) public {
         require(msg.sender == managerProxy.admin(), "only proxy admin can change brains");
         managerProxy._acceptImplementation();
@@ -58,69 +66,77 @@ contract Manager is ManagerStorageV2 {
         closedForAirdrop = status;
     }
 
+    function addSigner(address newSigner) external onlyOwner {
+        isSigner[newSigner] = true;
+    }
+
+    function removeSigner(address newSigner) external onlyOwner {
+        delete isSigner[newSigner];
+    }
+
     //batch airdrop with the same tokenURI
     function batchAirdrop(uint256 cid, uint256 limit, address[] calldata tos, string calldata tokenURI) public onlyAirdropAdmin onlyCanAirdrop {
-        require(nftAddr != address(0), "nftAddr not set");
-        updateCampaigns(cid, limit);
-        Campaign storage campaign = campaigns[cid];
-        require(campaign.minted + tos.length <= campaign.limit, "cid exceed its limit");
+        batchAirdropInner(cid, limit, tos, tokenURI);
+    }
+
+    function batchAirdropInner(uint256 cid, uint256 limit, address[] calldata tos, string calldata tokenURI) internal {
         for (uint i = 0; i < tos.length; i++) {
-            mintInner(cid, tos[i], campaign, tokenURI);
+            mintInner(cid, limit, tos[i], tokenURI);
         }
+    }
+
+    struct BatchAirdropV2Param {
+        uint256 cid;
+        uint256 limit;
+        address[] tos;
+        string tokenURI;
+    }
+
+    function batchAirdropV2(BatchAirdropV2Param[] calldata params) public onlyBatchAirdropAdmin onlyCanAirdrop {
+        for (uint i = 0; i < params.length; i++) {
+            batchAirdropInner(params[i].cid, params[i].limit, params[i].tos, params[i].tokenURI);
+        }
+    }
+
+    function batchAirdropWithSig(BatchAirdropV2Param calldata param, bytes calldata signature) public onlyCanAirdrop {
+        bytes32 hash = hashBatchAirdropV2Param(param);
+        address signer = hash.recover(signature);
+        require(isSigner[signer], "verify signer failed");
+        batchAirdropInner(param.cid, param.limit, param.tos, param.tokenURI);
+    }
+
+    function hashBatchAirdropV2Param(BatchAirdropV2Param calldata params) internal view returns (bytes32) {
+        bytes32 hash = keccak256(
+            abi.encodePacked(
+                signMessage,
+                keccak256(abi.encodePacked(params.cid, params.limit, params.tos, params.tokenURI, block.chainid))
+            )
+        );
+        return hash;
     }
 
     //batch airdrop with the different tokenURI
     function batchAirdropWithDifURI(uint256 cid, uint256 limit, address[] calldata tos, string[] calldata tokenURIs) public onlyAirdropAdmin onlyCanAirdrop {
-        require(nftAddr != address(0), "nftAddr not set");
-        require(tos.length == tokenURIs.length, "tos.length is not equal tokenURIs");
-        updateCampaigns(cid, limit);
-        Campaign storage campaign = campaigns[cid];
-        require(campaign.minted + tos.length <= campaign.limit, "cid exceed its limit");
         for (uint i = 0; i < tos.length; i++) {
-            mintInner(cid, tos[i], campaign, tokenURIs[i]);
+            mintInner(cid, limit, tos[i], tokenURIs[i]);
         }
     }
 
-    function updateCampaigns(uint256 cid, uint256 limit) internal {
-        if (!campaigns[cid].isUsed) {
-            campaigns[cid] = Campaign(cid, 0, limit, 1, true);
-        } else if (campaigns[cid].limit != limit) {
-            campaigns[cid].limit = limit;
-        }
-    }
-
-    function mintInner(uint256 cid, address to, Campaign storage campaign, string calldata tokenURI) internal {
+    function mintInner(uint256 cid, uint256 limit, address to, string calldata tokenURI) internal returns (uint256){
         bytes32 key = genParticipateKey(to, cid);
         uint256 count = participated[key];
         // not exceed limit
-        require(count + 1 <= campaign.limitPerUser, "participated exceed limit");
-        campaign.minted++;
+        require(count + 1 <= limit, "participated exceed limit");
         participated[key]++;
-        ITaskOnNFT721(nftAddr).mint(to, cid, tokenURI);
+        return ITaskOnNFT721(nftAddr).mint(to, cid, tokenURI);
     }
 
-    function mint(address account, uint256 cid, string memory tokenURI, uint256 limit, bytes32 unsigned, bytes memory signature) public returns (uint256) {
-        require(nftAddr != address(0), "nftAddr not set");
+    function mint(address account, uint256 cid, string calldata tokenURI, uint256 limit, bytes32 unsigned, bytes calldata signature) public returns (uint256) {
         // check orangeSinger's signature
         bytes32 hash = hashTransaction(account, cid, limit, tokenURI);
         require(hash == unsigned, "hash not equal");
         require(verify(hash, signature), "verify orange signer failed");
-        // check cid exists
-        if (!campaigns[cid].isUsed) {
-            campaigns[cid] = Campaign(cid, 0, limit, 1, true);
-        } else if (campaigns[cid].limit != limit) {
-            campaigns[cid].limit = limit;
-        }
-        // revert if this cid have exceeded its limit
-        Campaign storage campaign = campaigns[cid];
-        require(campaign.minted < campaign.limit, "cid exceed its limit");
-        // not exceed limit
-        bytes32 key = genParticipateKey(account, cid);
-        uint256 count = participated[key];
-        require(count < campaign.limitPerUser, "participated exceed limit");
-        campaign.minted++;
-        participated[key]++;
-        return ITaskOnNFT721(nftAddr).mint(account, cid, tokenURI);
+        return mintInner(cid, limit, account, tokenURI);
     }
 
     function setParticipateLimit(uint256 cid, uint256 limit) external onlySigner {
@@ -129,36 +145,32 @@ contract Manager is ManagerStorageV2 {
         campaign.limitPerUser = limit;
     }
 
-    function setTokenURI(address account, uint256 tokenId, string memory uri, bytes32 unsigned, bytes memory signature) public {
-        require(nftAddr != address(0), "nftAddr not set");
-        // check owner
-        require(account == ITaskOnNFT721(nftAddr).ownerOf(tokenId), "not owner");
-        // check orangeSinger's signature
-        bytes32 hash = hashUri(account, tokenId, uri);
+    function setTokenURI(address account, uint256 cid, string memory uri, bytes32 unsigned, bytes memory signature) public {
+        bytes32 hash = hashUri(account, cid, uri);
         require(hash == unsigned, "hash not equal");
         require(verify(hash, signature), "verify orange signer failed");
-        ITaskOnNFT721(nftAddr).setTokenURI(tokenId, uri);
+        ITaskOnNFT721(nftAddr).setTokenURI(cid, uri);
     }
 
     function genParticipateKey(address account, uint256 cid) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked(account, cid));
     }
 
-    function hashUri(address account, uint256 tokenId, string memory tokenURI) internal pure returns (bytes32){
+    function hashUri(address account, uint256 tokenId, string memory tokenURI) internal view returns (bytes32){
         bytes32 hash = keccak256(
             abi.encodePacked(
                 signMessage,
-                keccak256(abi.encodePacked(account, tokenId, tokenURI))
+                keccak256(abi.encodePacked(account, tokenId, tokenURI, block.chainid))
             )
         );
         return hash;
     }
 
-    function hashTransaction(address account, uint256 cid, uint256 limit, string memory tokenURI) internal pure returns (bytes32) {
+    function hashTransaction(address account, uint256 cid, uint256 limit, string memory tokenURI) internal view returns (bytes32) {
         bytes32 hash = keccak256(
             abi.encodePacked(
                 signMessage,
-                keccak256(abi.encodePacked(account, cid, limit, tokenURI))
+                keccak256(abi.encodePacked(account, cid, limit, tokenURI, block.chainid))
             )
         );
         return hash;

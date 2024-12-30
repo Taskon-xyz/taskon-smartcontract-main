@@ -1,6 +1,6 @@
 ## taskon contracts
 
-#### polygon
+#### polygon 
 
 manager: 0x8f2f3dAD762d322b725d6d6bAC891c8b64EcF52C
 manager new impl: 0xebbCf5718cC24A72B43B07d60102B21aeB42e11C
@@ -11,7 +11,7 @@ nft: 0x9C19c0393Bd67A98C89088207112c1D7ca28Fa95
 new nft: 0xc8bCf06DAE0dB7538FFbd17Ce793b249DDb24Ead
 new nft: 0x9d083c192c44fAC3E07786D787918c456f58a27C
 
-#### ontology
+#### ontology 
 
 manager: 0xaee6ade3d0718af01f04e0a2697e9912a1e37053
 manager new impl: 0xebbCf5718cC24A72B43B07d60102B21aeB42e11C
@@ -22,7 +22,7 @@ nft: 0x9c19c0393bd67a98c89088207112c1d7ca28fa95
 new nft: 0xc8bCf06DAE0dB7538FFbd17Ce793b249DDb24Ead
 new nft: 0x9d083c192c44fAC3E07786D787918c456f58a27C
 
-#### bsc
+#### bsc 
 
 manager: 0x5F8200b2B2f57fC0510Ed80FefA6A445C4E69a3C
 manager new impl: 0xebbCf5718cC24A72B43B07d60102B21aeB42e11C

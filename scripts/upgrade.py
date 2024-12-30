@@ -25,6 +25,6 @@ def main():
         return
     manager = Manager.deploy({"from": dev})
     click.echo(f"New Manager deployed [{manager.address}]")
-    managerProxy = ManagerProxy[-1]
+    managerProxy = ManagerProxy.at("0x57e54d4147AFdA7F0b55498EAf44e713811c3519")
     managerProxy._setPendingImplementation(manager.address, {"from": dev})
     manager._become(managerProxy.address, {"from": dev})
